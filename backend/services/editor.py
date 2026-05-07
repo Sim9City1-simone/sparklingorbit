@@ -9,13 +9,69 @@ FORMATS = {
     "16:9": (1920, 1080),
 }
 
-DEFAULT_STYLE = {
-    "highlight_color": "FFFF00",
-    "text_color": "FFFFFF",
-    "outline_color": "000000",
-    "font_size": 52,
-    "position": "bottom",  # bottom | center | top
+# ─── Caption presets ──────────────────────────────────────────────────────────
+
+CAPTION_PRESETS: dict[str, dict] = {
+    "default": {
+        "highlight_color": "FFFF00",  # yellow
+        "text_color": "FFFFFF",
+        "outline_color": "000000",
+        "font_name": "Liberation Sans",
+        "font_size": 56,
+        "bold": True,
+        "uppercase": False,
+        "outline_size": 3.0,
+        "shadow_size": 1.0,
+        "words_per_chunk": 3,
+        "position": "bottom",
+        "border_style": 1,
+    },
+    "tiktok": {
+        "highlight_color": "FFFF00",
+        "text_color": "FFFFFF",
+        "outline_color": "000000",
+        "font_name": "Liberation Sans",
+        "font_size": 62,
+        "bold": True,
+        "uppercase": True,
+        "outline_size": 2.5,
+        "shadow_size": 1.5,
+        "words_per_chunk": 3,
+        "position": "bottom",
+        "border_style": 1,
+    },
+    "mrbeast": {
+        # yellow text, white highlight, box background
+        "highlight_color": "FFFFFF",
+        "text_color": "FFFF00",
+        "outline_color": "000000",
+        "font_name": "Liberation Sans",
+        "font_size": 68,
+        "bold": True,
+        "uppercase": True,
+        "outline_size": 3.0,
+        "shadow_size": 0.0,
+        "words_per_chunk": 2,
+        "position": "bottom",
+        "border_style": 3,  # opaque box
+    },
+    "minimal": {
+        "highlight_color": "00BFFF",  # deep sky blue
+        "text_color": "FFFFFF",
+        "outline_color": "000000",
+        "font_name": "Liberation Sans",
+        "font_size": 50,
+        "bold": False,
+        "uppercase": False,
+        "outline_size": 1.5,
+        "shadow_size": 1.0,
+        "words_per_chunk": 4,
+        "position": "bottom",
+        "border_style": 1,
+    },
 }
+
+DEFAULT_STYLE = CAPTION_PRESETS["default"]
 
 
 def _get_video_dimensions(video_path: str) -> tuple[int, int]:
@@ -49,16 +105,30 @@ def _seconds_to_ass(seconds: float) -> str:
 
 
 def _build_ass(words: list[dict], style: dict, res_x: int, res_y: int) -> str:
-    """ASS subtitles with word-by-word color highlight."""
-    pos = style.get("position", "bottom")
-    alignment = {"bottom": 2, "center": 5, "top": 8}.get(pos, 2)
-    margin_v = 80 if pos == "bottom" else (20 if pos == "top" else 0)
-    font_size = style.get("font_size", 52)
+    """ASS subtitles with word-by-word karaoke highlight and advanced styling."""
+    # If a named preset is requested, merge it under any explicit overrides
+    preset_name = style.get("preset")
+    if preset_name and preset_name in CAPTION_PRESETS:
+        style = {**CAPTION_PRESETS[preset_name], **{k: v for k, v in style.items() if k != "preset"}}
 
-    txt_style = _rgb_to_ass_style(style.get("text_color", "FFFFFF"))
-    out_style = _rgb_to_ass_style(style.get("outline_color", "000000"))
-    hl_inline = _rgb_to_ass_inline(style.get("highlight_color", "FFFF00"))
+    pos           = style.get("position", "bottom")
+    alignment     = {"bottom": 2, "center": 5, "top": 8}.get(pos, 2)
+    margin_v      = 80 if pos == "bottom" else (20 if pos == "top" else 0)
+    font_name     = style.get("font_name", "Liberation Sans")
+    font_size     = style.get("font_size", 56)
+    bold          = -1 if style.get("bold", True) else 0
+    uppercase     = style.get("uppercase", False)
+    outline_size  = style.get("outline_size", 3.0)
+    shadow_size   = style.get("shadow_size", 1.0)
+    border_style  = style.get("border_style", 1)
+    words_per_chunk = style.get("words_per_chunk", 3)
+
+    txt_style  = _rgb_to_ass_style(style.get("text_color", "FFFFFF"))
+    out_style  = _rgb_to_ass_style(style.get("outline_color", "000000"))
+    hl_inline  = _rgb_to_ass_inline(style.get("highlight_color", "FFFF00"))
     txt_inline = _rgb_to_ass_inline(style.get("text_color", "FFFFFF"))
+    # Semi-transparent black box background (only visible when border_style=3)
+    back_color = "&H80000000&"
 
     header = (
         "[Script Info]\n"
@@ -71,25 +141,27 @@ def _build_ass(words: list[dict], style: dict, res_x: int, res_y: int) -> str:
         "OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, "
         "ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, "
         "MarginL, MarginR, MarginV, Encoding\n"
-        f"Style: Default,Arial,{font_size},{txt_style},&H000000FF&,{out_style},"
-        f"&H80000000&,-1,0,0,0,100,100,0.5,0,1,3,0,{alignment},30,30,{margin_v},1\n\n"
+        f"Style: Default,{font_name},{font_size},{txt_style},&H000000FF&,{out_style},"
+        f"{back_color},{bold},0,0,0,100,100,0,0,{border_style},{outline_size},"
+        f"{shadow_size},{alignment},30,30,{margin_v},1\n\n"
         "[Events]\n"
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
     )
 
-    LINE_SIZE = 6
     events = []
-    for i in range(0, len(words), LINE_SIZE):
-        line_words = words[i: i + LINE_SIZE]
-        for wi, active in enumerate(line_words):
+    for i in range(0, len(words), words_per_chunk):
+        chunk = words[i: i + words_per_chunk]
+        for wi, active in enumerate(chunk):
             w_start = max(0.0, active["start"])
             w_end = active["end"]
             if w_end <= w_start:
                 w_end = w_start + 0.1
 
             parts = []
-            for j, w in enumerate(line_words):
+            for j, w in enumerate(chunk):
                 text = w["word"].strip()
+                if uppercase:
+                    text = text.upper()
                 if j == wi:
                     parts.append(f"{{\\c{hl_inline}}}{text}{{\\c{txt_inline}}}")
                 else:
