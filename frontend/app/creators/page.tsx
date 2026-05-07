@@ -135,12 +135,10 @@ export default function CreatorsPage() {
           </Link>
           <p className="text-gray-400 text-sm mt-1">Gestione Creator</p>
         </div>
-        <Link
-          href="/"
-          className="text-sm text-gray-400 hover:text-white transition-colors"
-        >
-          ← Home
-        </Link>
+        <div className="flex gap-4 text-sm text-gray-400">
+          <Link href="/history" className="hover:text-white transition-colors">Storico</Link>
+          <Link href="/" className="hover:text-white transition-colors">← Home</Link>
+        </div>
       </div>
 
       {/* Creator list */}

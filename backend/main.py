@@ -1,5 +1,6 @@
 import asyncio
 import json
+import shutil
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -286,6 +287,40 @@ def disconnect_social(creator_id: str, platform: str):
         if account:
             session.delete(account)
             session.commit()
+
+
+# ─── Jobs history ─────────────────────────────────────────────────────────────
+
+@app.get("/jobs")
+def list_jobs():
+    with Session(engine) as session:
+        jobs = session.exec(select(Job).order_by(Job.created_at.desc())).all()
+        result = []
+        for job in jobs:
+            creator = session.get(Creator, job.creator_id) if job.creator_id else None
+            clips_count = len(session.exec(select(Clip).where(Clip.job_id == job.id)).all())
+            result.append({
+                **job.model_dump(),
+                "creator_name": creator.name if creator else None,
+                "creator_avatar": creator.avatar_url if creator else None,
+                "clips_count": clips_count,
+            })
+        return result
+
+
+@app.delete("/jobs/{job_id}", status_code=204)
+def delete_job(job_id: str):
+    with Session(engine) as session:
+        job = session.get(Job, job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        for clip in session.exec(select(Clip).where(Clip.job_id == job_id)).all():
+            session.delete(clip)
+        session.delete(job)
+        session.commit()
+    job_dir = TEMP_DIR / job_id
+    if job_dir.exists():
+        shutil.rmtree(job_dir)
 
 
 # ─── Health ───────────────────────────────────────────────────────────────────

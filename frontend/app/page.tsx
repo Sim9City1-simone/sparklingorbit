@@ -88,12 +88,20 @@ export default function Home() {
             <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider">
               Creator
             </h2>
-            <Link
-              href="/creators"
-              className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
-            >
-              Gestisci →
-            </Link>
+            <div className="flex gap-3">
+              <Link
+                href="/history"
+                className="text-xs text-gray-400 hover:text-white transition-colors"
+              >
+                Storico
+              </Link>
+              <Link
+                href="/creators"
+                className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
+              >
+                Gestisci →
+              </Link>
+            </div>
           </div>
 
           <div className="flex gap-3 flex-wrap">
