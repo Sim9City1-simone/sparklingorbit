@@ -14,30 +14,15 @@ _COOKIES_CANDIDATES = [
     Path(__file__).resolve().parent.parent / "cookies.txt", # local dev
 ]
 
-# OAuth2 token cache dir — persisted on the Coolify /data volume
-_OAUTH2_CACHE_DIR = "/data/yt-dlp-cache"
-_OAUTH2_TOKEN = Path("/data/yt-dlp-cache/youtube-oauth2.token")
-
 
 def _auth_opts() -> dict:
-    """
-    Auth priority:
-    1. OAuth2 token (long-lived, auto-refresh) — preferred on Linux server
-    2. cookies.txt — fallback / local dev
-    3. Safari browser cookies — macOS dev only
-    """
-    if _OAUTH2_TOKEN.exists():
-        return {
-            "username": "oauth2",
-            "password": "",
-            "cachedir": _OAUTH2_CACHE_DIR,
-        }
+    """cookies.txt (server) → Safari (macOS dev)"""
     for p in _COOKIES_CANDIDATES:
         if p.exists():
             return {"cookiefile": str(p)}
     if sys.platform == "darwin":
         return {"cookiesfrombrowser": ("safari",)}
-    return {"cachedir": _OAUTH2_CACHE_DIR}
+    return {}
 
 
 def download_audio(job_id: str, url: str) -> str:
