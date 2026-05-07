@@ -4,10 +4,29 @@ from datetime import datetime
 import uuid
 
 
+class Creator(SQLModel, table=True):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    name: str
+    avatar_url: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class SocialAccount(SQLModel, table=True):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    creator_id: str = Field(foreign_key="creator.id")
+    platform: str  # youtube | tiktok | instagram
+    access_token: str = ""
+    refresh_token: str = ""
+    platform_user_id: str = ""
+    username: str = ""
+    connected_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class Job(SQLModel, table=True):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     youtube_url: str
-    status: str = "pending"  # pending | downloading | transcribing | scoring | editing | done | error
+    creator_id: Optional[str] = Field(default=None, foreign_key="creator.id")
+    status: str = "pending"
     error: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
