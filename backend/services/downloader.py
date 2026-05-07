@@ -1,4 +1,5 @@
 import os
+import sys
 import yt_dlp
 from pathlib import Path
 from config import TEMP_DIR
@@ -8,13 +9,20 @@ _NVM_NODE = Path.home() / ".nvm/versions/node/v24.15.0/bin"
 if _NVM_NODE.exists():
     os.environ["PATH"] = str(_NVM_NODE) + ":" + os.environ.get("PATH", "")
 
-COOKIES_FILE = Path(__file__).resolve().parent.parent / "cookies.txt"
+_COOKIES_CANDIDATES = [
+    Path("/data/cookies.txt"),                               # Coolify volume mount
+    Path(__file__).resolve().parent.parent / "cookies.txt", # local dev
+]
 
 
 def _cookie_opts() -> dict:
-    if COOKIES_FILE.exists():
-        return {"cookiefile": str(COOKIES_FILE)}
-    return {"cookiesfrombrowser": ("safari",)}
+    for p in _COOKIES_CANDIDATES:
+        if p.exists():
+            return {"cookiefile": str(p)}
+    # cookiesfrombrowser only works on macOS (Safari); skip on Linux
+    if sys.platform == "darwin":
+        return {"cookiesfrombrowser": ("safari",)}
+    return {}
 
 
 def download_audio(job_id: str, url: str) -> str:
