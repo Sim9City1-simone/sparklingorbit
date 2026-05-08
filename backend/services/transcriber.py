@@ -1,3 +1,4 @@
+import os
 import re as _re
 from faster_whisper import WhisperModel
 from config import WHISPER_MODEL
@@ -56,6 +57,37 @@ def transcribe_from_url(url: str) -> dict | None:
         return _snippets_to_whisper(list(snippets))
     except Exception:
         return None
+
+def transcribe_via_groq(audio_path: str) -> dict | None:
+    """Groq Whisper large-v3 — gratuito, qualità 4× migliore su italiano."""
+    try:
+        from groq import Groq
+        client = Groq(api_key=os.environ["GROQ_API_KEY"])
+        with open(audio_path, "rb") as f:
+            resp = client.audio.transcriptions.create(
+                file=(os.path.basename(audio_path), f),
+                model="whisper-large-v3",
+                response_format="verbose_json",
+                timestamp_granularities=["word", "segment"],
+                language="it",
+            )
+        segments = []
+        for i, seg in enumerate(resp.segments or []):
+            words = [
+                {"word": w.word, "start": float(w.start), "end": float(w.end)}
+                for w in (seg.words or [])
+            ]
+            segments.append({
+                "id": i,
+                "start": float(seg.start),
+                "end": float(seg.end),
+                "text": seg.text,
+                "words": words,
+            })
+        return {"text": resp.text, "segments": segments}
+    except Exception:
+        return None
+
 
 _model: WhisperModel | None = None
 

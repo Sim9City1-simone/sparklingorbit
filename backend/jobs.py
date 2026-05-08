@@ -60,7 +60,7 @@ def _video_path(job_id: str) -> Path | None:
 
 async def process_job(job_id: str, youtube_url: str):
     from services.downloader import download_audio
-    from services.transcriber import transcribe, transcribe_from_url
+    from services.transcriber import transcribe, transcribe_from_url, transcribe_via_groq
     from services.scorer import score_segments
     from services.editor import edit_clips_from_url
 
@@ -73,7 +73,10 @@ async def process_job(job_id: str, youtube_url: str):
             update_job_status(job_id, "downloading")
             audio_path = await asyncio.to_thread(download_audio, job_id, youtube_url)
             update_job_status(job_id, "transcribing")
-            transcript = await asyncio.to_thread(transcribe, audio_path)
+            # Groq Whisper large-v3 (gratuito, qualità 4×) → fallback faster-whisper
+            transcript = await asyncio.to_thread(transcribe_via_groq, audio_path)
+            if transcript is None:
+                transcript = await asyncio.to_thread(transcribe, audio_path)
             Path(audio_path).unlink(missing_ok=True)
 
         _transcript_path(job_id).write_text(

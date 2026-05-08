@@ -266,6 +266,58 @@ def _detect_two_persons(video_path: str, duration: float) -> list[tuple] | None:
     return [tuple(int(v) for v in face) for face in two_face_frames[0]]
 
 
+def detect_overlays_vision(video_path: str, start: float, end: float) -> dict:
+    """
+    Sample 3 frames and ask Claude Haiku if overlays/lower-thirds are present.
+    Returns {"has_overlay": bool, "description": str}.
+    No-op if ANTHROPIC_API_KEY or VISION_ENABLED not set.
+    """
+    import os, base64, tempfile
+    if not os.environ.get("ANTHROPIC_API_KEY") or not os.environ.get("VISION_ENABLED"):
+        return {"has_overlay": False, "description": ""}
+    try:
+        import anthropic, json as _json
+        client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+        duration = end - start
+        images = []
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for i, pct in enumerate([0.2, 0.5, 0.8]):
+                t = start + duration * pct
+                frame_path = f"{tmpdir}/f{i}.jpg"
+                subprocess.run(
+                    ["ffmpeg", "-y", "-ss", str(t), "-i", video_path,
+                     "-frames:v", "1", "-q:v", "3", frame_path],
+                    capture_output=True, timeout=10,
+                )
+                if Path(frame_path).exists():
+                    with open(frame_path, "rb") as fh:
+                        images.append(base64.b64encode(fh.read()).decode())
+        if not images:
+            return {"has_overlay": False, "description": ""}
+        content = [{
+            "type": "text",
+            "text": (
+                "Analizza questi frame di un video YouTube. "
+                "Rileva: lower-third (testi in basso con nome/titolo), loghi/watermark, "
+                "banner grafici, branding permanente. "
+                'Rispondi SOLO con JSON: {"has_overlay": true/false, "description": "breve descrizione o vuoto"}'
+            ),
+        }]
+        for img in images:
+            content.append({"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": img}})
+        resp = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=150,
+            messages=[{"role": "user", "content": content}],
+        )
+        raw = resp.content[0].text.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1].lstrip("json").strip()
+        return _json.loads(raw)
+    except Exception:
+        return {"has_overlay": False, "description": ""}
+
+
 def _build_dual_filter_complex(
     faces: list[tuple], src_w: int, src_h: int, ass_path: Path
 ) -> tuple[str, list[str]]:
@@ -336,6 +388,14 @@ def render_clip(
     ass_path.write_text(_build_ass(words, style, res_x, res_y), encoding="utf-8")
 
     output_path = output_dir / f"clip{suffix}.mp4"
+
+    # Overlay detection (Claude Vision) — logs if lower-thirds/watermarks found
+    overlay_info = detect_overlays_vision(video_path, seg["start"], seg["end"])
+    if overlay_info.get("has_overlay"):
+        import logging
+        logging.getLogger(__name__).warning(
+            "Overlay detected in clip %s/%s: %s", job_id, clip_idx, overlay_info.get("description", "")
+        )
 
     # Two-person split: only for 9:16 to keep 1:1 and 16:9 unaffected
     faces = None
