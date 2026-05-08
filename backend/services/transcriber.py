@@ -4,7 +4,6 @@ from config import WHISPER_MODEL
 
 try:
     from youtube_transcript_api import YouTubeTranscriptApi
-    from youtube_transcript_api._errors import NoTranscriptFound
     _YT_TRANSCRIPT_AVAILABLE = True
 except ImportError:
     _YT_TRANSCRIPT_AVAILABLE = False
@@ -44,18 +43,17 @@ def transcribe_from_url(url: str) -> dict | None:
     """
     Fetch YouTube captions without downloading audio.
     Returns None if unavailable — caller falls back to Whisper.
+    Uses youtube-transcript-api v1.x API.
     """
     if not _YT_TRANSCRIPT_AVAILABLE:
         return None
     try:
         video_id = _video_id(url)
-        tlist = YouTubeTranscriptApi.list_transcripts(video_id)
         langs = ["it", "en", "it-IT", "en-US"]
-        try:
-            t = tlist.find_manually_created_transcript(langs)
-        except NoTranscriptFound:
-            t = tlist.find_generated_transcript(langs)
-        return _snippets_to_whisper(t.fetch())
+        tlist = YouTubeTranscriptApi.list(video_id)
+        t = tlist.find_transcript(langs)
+        snippets = t.fetch()
+        return _snippets_to_whisper(list(snippets))
     except Exception:
         return None
 

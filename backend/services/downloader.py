@@ -5,10 +5,11 @@ import yt_dlp
 from pathlib import Path
 from config import TEMP_DIR
 
-# Add nvm Node.js to PATH so yt-dlp can solve YouTube's n-challenge
+# Add nvm Node.js to PATH so yt-dlp can solve YouTube's n-challenge (local dev)
 _NVM_NODE = Path.home() / ".nvm/versions/node/v24.15.0/bin"
 if _NVM_NODE.exists():
     os.environ["PATH"] = str(_NVM_NODE) + ":" + os.environ.get("PATH", "")
+# On Linux (Docker), node is at /usr/bin — already in PATH, no action needed
 
 # Write cookies from env var if present (Coolify/production)
 _ENV_COOKIES_PATH = Path("/data/cookies.txt")
@@ -46,7 +47,6 @@ def download_audio(job_id: str, url: str) -> str:
         "outtmpl": str(output_dir / "audio.%(ext)s"),
         "quiet": True,
         "no_warnings": True,
-        "extractor_args": {"youtube": {"player_client": ["android", "ios"]}},
         **_auth_opts(),
     }
 
@@ -72,7 +72,6 @@ def download_clip_segment(job_id: str, url: str, clip_idx: int, start: float, en
         "merge_output_format": "mp4",
         "download_ranges": lambda info, __: [{"start_time": start, "end_time": end}],
         "force_keyframes_at_cuts": True,
-        "extractor_args": {"youtube": {"player_client": ["android", "ios"]}},
         **_auth_opts(),
     }
 
