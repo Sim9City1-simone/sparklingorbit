@@ -5,15 +5,15 @@ from config import MIN_CLIP_DURATION, MAX_CLIP_DURATION
 
 # ─── LLM-based scoring (primary) ─────────────────────────────────────────────
 
-_anthropic_client = None
+_groq_client = None
 
 
 def _get_client():
-    global _anthropic_client
-    if _anthropic_client is None:
-        import anthropic
-        _anthropic_client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    return _anthropic_client
+    global _groq_client
+    if _groq_client is None:
+        from groq import Groq
+        _groq_client = Groq(api_key=os.environ["GROQ_API_KEY"])
+    return _groq_client
 
 
 def _llm_score(transcript: dict, top_n: int) -> list[dict]:
@@ -63,14 +63,13 @@ Regole:
 - Nessuna sovrapposizione tra clip
 - score tra 0.0 e 1.0"""
 
-    resp = _get_client().messages.create(
-        model="claude-sonnet-4-6",
+    resp = _get_client().chat.completions.create(
+        model="llama-3.3-70b-versatile",
         max_tokens=1024,
         messages=[{"role": "user", "content": prompt}],
     )
 
-    raw = resp.content[0].text.strip()
-    # Strip markdown code fences if present
+    raw = resp.choices[0].message.content.strip()
     if raw.startswith("```"):
         raw = raw.split("```")[1]
         if raw.startswith("json"):

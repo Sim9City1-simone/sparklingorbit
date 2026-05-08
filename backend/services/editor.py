@@ -268,16 +268,15 @@ def _detect_two_persons(video_path: str, duration: float) -> list[tuple] | None:
 
 def detect_overlays_vision(video_path: str, start: float, end: float) -> dict:
     """
-    Sample 3 frames and ask Claude Haiku if overlays/lower-thirds are present.
+    Sample 3 frames and ask DeepSeek Vision if overlays/lower-thirds are present.
     Returns {"has_overlay": bool, "description": str}.
-    No-op if ANTHROPIC_API_KEY or VISION_ENABLED not set.
+    No-op if DEEPSEEK_API_KEY or VISION_ENABLED not set.
     """
-    import os, base64, tempfile
-    if not os.environ.get("ANTHROPIC_API_KEY") or not os.environ.get("VISION_ENABLED"):
+    import os, base64, tempfile, json as _json
+    import requests
+    if not os.environ.get("DEEPSEEK_API_KEY") or not os.environ.get("VISION_ENABLED"):
         return {"has_overlay": False, "description": ""}
     try:
-        import anthropic, json as _json
-        client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
         duration = end - start
         images = []
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -294,7 +293,11 @@ def detect_overlays_vision(video_path: str, start: float, end: float) -> dict:
                         images.append(base64.b64encode(fh.read()).decode())
         if not images:
             return {"has_overlay": False, "description": ""}
-        content = [{
+        content = [
+            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}"}}
+            for img in images
+        ]
+        content.append({
             "type": "text",
             "text": (
                 "Analizza questi frame di un video YouTube. "
@@ -302,15 +305,22 @@ def detect_overlays_vision(video_path: str, start: float, end: float) -> dict:
                 "banner grafici, branding permanente. "
                 'Rispondi SOLO con JSON: {"has_overlay": true/false, "description": "breve descrizione o vuoto"}'
             ),
-        }]
-        for img in images:
-            content.append({"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": img}})
-        resp = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=150,
-            messages=[{"role": "user", "content": content}],
+        })
+        resp = requests.post(
+            "https://api.deepseek.com/chat/completions",
+            headers={
+                "Authorization": f"Bearer {os.environ['DEEPSEEK_API_KEY']}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "deepseek-chat",
+                "max_tokens": 150,
+                "messages": [{"role": "user", "content": content}],
+            },
+            timeout=30,
         )
-        raw = resp.content[0].text.strip()
+        resp.raise_for_status()
+        raw = resp.json()["choices"][0]["message"]["content"].strip()
         if raw.startswith("```"):
             raw = raw.split("```")[1].lstrip("json").strip()
         return _json.loads(raw)
