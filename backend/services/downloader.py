@@ -28,11 +28,12 @@ _COOKIES_CANDIDATES = [
 
 _OAUTH_TOKEN_PATH = Path("/data/youtube-oauth2.token")
 
+# iOS client bypasses datacenter bot detection without needing cookies/OAuth
+_EXTRACTOR_ARGS = {"youtube": {"player_client": ["ios", "web"]}}
+
 
 def _auth_opts() -> dict:
-    """OAuth2 token (primary) → cookies.txt → Safari (macOS dev)"""
-    if _OAUTH_TOKEN_PATH.exists():
-        return {"username": "oauth2", "password": ""}
+    """cookies.txt → Safari (macOS dev)"""
     for p in _COOKIES_CANDIDATES:
         if p.exists():
             return {"cookiefile": str(p)}
@@ -51,6 +52,7 @@ def download_audio(job_id: str, url: str) -> str:
         "outtmpl": str(output_dir / "audio.%(ext)s"),
         "quiet": True,
         "no_warnings": True,
+        "extractor_args": _EXTRACTOR_ARGS,
         **_auth_opts(),
     }
 
@@ -76,6 +78,7 @@ def download_clip_segment(job_id: str, url: str, clip_idx: int, start: float, en
         "merge_output_format": "mp4",
         "download_ranges": lambda info, __: [{"start_time": start, "end_time": end}],
         "force_keyframes_at_cuts": True,
+        "extractor_args": _EXTRACTOR_ARGS,
         **_auth_opts(),
     }
 
