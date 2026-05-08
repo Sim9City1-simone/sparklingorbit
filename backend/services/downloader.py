@@ -46,6 +46,7 @@ def download_audio(job_id: str, url: str) -> str:
         "outtmpl": str(output_dir / "audio.%(ext)s"),
         "quiet": True,
         "no_warnings": True,
+        "extractor_args": {"youtube": {"player_client": ["android", "ios"]}},
         **_auth_opts(),
     }
 
@@ -71,6 +72,7 @@ def download_clip_segment(job_id: str, url: str, clip_idx: int, start: float, en
         "merge_output_format": "mp4",
         "download_ranges": lambda info, __: [{"start_time": start, "end_time": end}],
         "force_keyframes_at_cuts": True,
+        "extractor_args": {"youtube": {"player_client": ["android", "ios"]}},
         **_auth_opts(),
     }
 
