@@ -13,7 +13,7 @@ if _NVM_NODE.exists():
 # Write cookies from env var if present (Coolify/production)
 _ENV_COOKIES_PATH = Path("/data/cookies.txt")
 _cookies_b64 = os.environ.get("YOUTUBE_COOKIES_B64", "")
-if _cookies_b64 and not _ENV_COOKIES_PATH.exists():
+if _cookies_b64:
     try:
         _ENV_COOKIES_PATH.parent.mkdir(parents=True, exist_ok=True)
         _ENV_COOKIES_PATH.write_bytes(base64.b64decode(_cookies_b64))
