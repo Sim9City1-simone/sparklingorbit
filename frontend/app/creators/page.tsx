@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
-const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL;
+const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "https://tssogk8cw8884okoo4csg04k.178.104.27.55.sslip.io";
 
 const PLATFORMS = [
   { id: "youtube", label: "YouTube", icon: "▶", color: "text-red-400" },

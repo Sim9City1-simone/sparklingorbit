@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import ClipCard from "@/components/ClipCard";
 
-const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL;
+const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "https://tssogk8cw8884okoo4csg04k.178.104.27.55.sslip.io";
 
 const STEPS = [
   { key: "downloading", label: "Download video" },
