@@ -26,9 +26,13 @@ _COOKIES_CANDIDATES = [
     Path(__file__).resolve().parent.parent / "cookies.txt", # local dev
 ]
 
+_OAUTH_TOKEN_PATH = Path("/data/youtube-oauth2.token")
+
 
 def _auth_opts() -> dict:
-    """cookies.txt (server) → Safari (macOS dev)"""
+    """OAuth2 token (primary) → cookies.txt → Safari (macOS dev)"""
+    if _OAUTH_TOKEN_PATH.exists():
+        return {"username": "oauth2", "password": ""}
     for p in _COOKIES_CANDIDATES:
         if p.exists():
             return {"cookiefile": str(p)}
