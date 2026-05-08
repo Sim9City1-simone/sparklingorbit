@@ -60,19 +60,21 @@ def _video_path(job_id: str) -> Path | None:
 
 async def process_job(job_id: str, youtube_url: str):
     from services.downloader import download_audio
-    from services.transcriber import transcribe
+    from services.transcriber import transcribe, transcribe_from_url
     from services.scorer import score_segments
     from services.editor import edit_clips_from_url
 
     try:
-        # Phase 1: audio only (~30-60MB vs 2-5GB for full video)
-        update_job_status(job_id, "downloading")
-        audio_path = await asyncio.to_thread(download_audio, job_id, youtube_url)
-
-        # Phase 2: transcribe and immediately free the audio file
+        # Phase 1+2: fetch YouTube captions (no download) → fallback to audio + Whisper
         update_job_status(job_id, "transcribing")
-        transcript = await asyncio.to_thread(transcribe, audio_path)
-        Path(audio_path).unlink(missing_ok=True)
+        transcript = await asyncio.to_thread(transcribe_from_url, youtube_url)
+
+        if transcript is None:
+            update_job_status(job_id, "downloading")
+            audio_path = await asyncio.to_thread(download_audio, job_id, youtube_url)
+            update_job_status(job_id, "transcribing")
+            transcript = await asyncio.to_thread(transcribe, audio_path)
+            Path(audio_path).unlink(missing_ok=True)
 
         _transcript_path(job_id).write_text(
             json.dumps(transcript, ensure_ascii=False), encoding="utf-8"

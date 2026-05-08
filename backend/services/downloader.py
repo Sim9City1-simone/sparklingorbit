@@ -1,3 +1,4 @@
+import base64
 import os
 import sys
 import yt_dlp
@@ -8,6 +9,16 @@ from config import TEMP_DIR
 _NVM_NODE = Path.home() / ".nvm/versions/node/v24.15.0/bin"
 if _NVM_NODE.exists():
     os.environ["PATH"] = str(_NVM_NODE) + ":" + os.environ.get("PATH", "")
+
+# Write cookies from env var if present (Coolify/production)
+_ENV_COOKIES_PATH = Path("/data/cookies.txt")
+_cookies_b64 = os.environ.get("YOUTUBE_COOKIES_B64", "")
+if _cookies_b64 and not _ENV_COOKIES_PATH.exists():
+    try:
+        _ENV_COOKIES_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _ENV_COOKIES_PATH.write_bytes(base64.b64decode(_cookies_b64))
+    except Exception:
+        pass
 
 _COOKIES_CANDIDATES = [
     Path("/data/cookies.txt"),                               # Coolify volume mount
