@@ -40,6 +40,13 @@ def _extractor_args() -> dict:
     return {"youtube": {"player_client": ["mweb"]}}
 
 
+def _proxy_opts() -> dict:
+    # YOUTUBE_PROXY_URL: optional residential proxy to bypass datacenter IP blocks
+    # e.g. "socks5://user:pass@host:port" or "http://user:pass@host:port"
+    proxy = os.environ.get("YOUTUBE_PROXY_URL", "").strip()
+    return {"proxy": proxy} if proxy else {}
+
+
 def _auth_opts() -> dict:
     # Production: YOUTUBE_COOKIES_B64 env var
     if _COOKIE_FILE:
@@ -65,6 +72,7 @@ def download_audio(job_id: str, url: str) -> str:
         "js_runtimes": {"node": {}},
         "remote_components": {"ejs:github"},
         "extractor_args": _extractor_args(),
+        **_proxy_opts(),
         **_auth_opts(),
     }
 
@@ -93,6 +101,7 @@ def download_clip_segment(job_id: str, url: str, clip_idx: int, start: float, en
         "js_runtimes": {"node": {}},
         "remote_components": {"ejs:github"},
         "extractor_args": _extractor_args(),
+        **_proxy_opts(),
         **_auth_opts(),
     }
 
