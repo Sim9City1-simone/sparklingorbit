@@ -11,10 +11,9 @@ if _NVM_NODE.exists():
 
 
 def _extractor_args() -> dict:
-    # bgutil-ytdlp-pot-provider plugin handles PO Token generation automatically.
-    # android_vr client is used by the yt-dlp-youtube-oauth2 plugin (removed);
-    # web_creator bypasses signature challenges without requiring OAuth2.
-    return {"youtube": {"player_client": ["web_creator", "ios"]}}
+    # mweb: avoids SABR streaming restriction that blocks web client; bgutil plugin
+    # auto-provides GVS PO Token for bot detection bypass.
+    return {"youtube": {"player_client": ["mweb"]}}
 
 
 def _auth_opts() -> dict:
@@ -36,6 +35,7 @@ def download_audio(job_id: str, url: str) -> str:
         "outtmpl": str(output_dir / "audio.%(ext)s"),
         "quiet": True,
         "no_warnings": True,
+        "remote_components": "ejs:github",
         "extractor_args": _extractor_args(),
         **_auth_opts(),
     }
@@ -62,6 +62,7 @@ def download_clip_segment(job_id: str, url: str, clip_idx: int, start: float, en
         "merge_output_format": "mp4",
         "download_ranges": lambda info, __: [{"start_time": start, "end_time": end}],
         "force_keyframes_at_cuts": True,
+        "remote_components": "ejs:github",
         "extractor_args": _extractor_args(),
         **_auth_opts(),
     }
