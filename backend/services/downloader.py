@@ -1,44 +1,28 @@
-import base64
 import os
 import sys
 import yt_dlp
 from pathlib import Path
 from config import TEMP_DIR
 
-# Add nvm Node.js to PATH so yt-dlp can solve YouTube's n-challenge (local dev)
+# nvm Node.js for local dev (bgutil uses Node.js; Docker already has it at /usr/bin)
 _NVM_NODE = Path.home() / ".nvm/versions/node/v24.15.0/bin"
 if _NVM_NODE.exists():
     os.environ["PATH"] = str(_NVM_NODE) + ":" + os.environ.get("PATH", "")
-# On Linux (Docker), node is at /usr/bin — already in PATH, no action needed
 
-# Write cookies from env var if present (Coolify/production)
-_ENV_COOKIES_PATH = Path("/data/cookies.txt")
-_cookies_b64 = os.environ.get("YOUTUBE_COOKIES_B64", "")
-if _cookies_b64:
-    try:
-        _ENV_COOKIES_PATH.parent.mkdir(parents=True, exist_ok=True)
-        _ENV_COOKIES_PATH.write_bytes(base64.b64decode(_cookies_b64))
-    except Exception:
-        pass
 
-_COOKIES_CANDIDATES = [
-    Path("/data/cookies.txt"),                               # Coolify volume mount
-    Path(__file__).resolve().parent.parent / "cookies.txt", # local dev
-]
-
-_OAUTH_TOKEN_PATH = Path("/data/youtube-oauth2.token")
-
-# iOS client bypasses datacenter bot detection without needing cookies/OAuth
-_EXTRACTOR_ARGS = {"youtube": {"player_client": ["ios", "web"]}}
+def _extractor_args() -> dict:
+    # bgutil-ytdlp-pot-provider plugin handles PO Token generation automatically.
+    # android_vr client is used by the yt-dlp-youtube-oauth2 plugin (removed);
+    # web_creator bypasses signature challenges without requiring OAuth2.
+    return {"youtube": {"player_client": ["web_creator", "ios"]}}
 
 
 def _auth_opts() -> dict:
-    """cookies.txt → Safari (macOS dev)"""
-    for p in _COOKIES_CANDIDATES:
-        if p.exists():
-            return {"cookiefile": str(p)}
+    # Local dev only: Safari cookies if present
     if sys.platform == "darwin":
-        return {"cookiesfrombrowser": ("safari",)}
+        local_cookie = Path(__file__).resolve().parent.parent / "cookies.txt"
+        if local_cookie.exists():
+            return {"cookiefile": str(local_cookie)}
     return {}
 
 
@@ -52,7 +36,7 @@ def download_audio(job_id: str, url: str) -> str:
         "outtmpl": str(output_dir / "audio.%(ext)s"),
         "quiet": True,
         "no_warnings": True,
-        "extractor_args": _EXTRACTOR_ARGS,
+        "extractor_args": _extractor_args(),
         **_auth_opts(),
     }
 
@@ -78,7 +62,7 @@ def download_clip_segment(job_id: str, url: str, clip_idx: int, start: float, en
         "merge_output_format": "mp4",
         "download_ranges": lambda info, __: [{"start_time": start, "end_time": end}],
         "force_keyframes_at_cuts": True,
-        "extractor_args": _EXTRACTOR_ARGS,
+        "extractor_args": _extractor_args(),
         **_auth_opts(),
     }
 
