@@ -1,5 +1,7 @@
+import base64
 import os
 import sys
+import tempfile
 import yt_dlp
 from pathlib import Path
 from config import TEMP_DIR
@@ -9,6 +11,28 @@ _NVM_NODE = Path.home() / ".nvm/versions/node/v24.15.0/bin"
 if _NVM_NODE.exists():
     os.environ["PATH"] = str(_NVM_NODE) + ":" + os.environ.get("PATH", "")
 
+# Production: decode YOUTUBE_COOKIES_B64 env var into a temp file once at startup
+_COOKIE_FILE: str | None = None
+
+def _init_cookies() -> None:
+    global _COOKIE_FILE
+    b64 = os.environ.get("YOUTUBE_COOKIES_B64", "").strip()
+    if not b64:
+        return
+    try:
+        cookie_data = base64.b64decode(b64)
+        tf = tempfile.NamedTemporaryFile(
+            mode="wb", suffix=".txt", prefix="yt_cookies_", delete=False
+        )
+        tf.write(cookie_data)
+        tf.flush()
+        tf.close()
+        _COOKIE_FILE = tf.name
+    except Exception:
+        pass
+
+_init_cookies()
+
 
 def _extractor_args() -> dict:
     # mweb: avoids SABR streaming restriction that blocks web client; bgutil plugin
@@ -17,7 +41,10 @@ def _extractor_args() -> dict:
 
 
 def _auth_opts() -> dict:
-    # Local dev only: Safari cookies if present
+    # Production: YOUTUBE_COOKIES_B64 env var
+    if _COOKIE_FILE:
+        return {"cookiefile": _COOKIE_FILE}
+    # Local dev: cookies.txt next to repo root
     if sys.platform == "darwin":
         local_cookie = Path(__file__).resolve().parent.parent / "cookies.txt"
         if local_cookie.exists():
