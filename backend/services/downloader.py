@@ -35,7 +35,8 @@ def download_audio(job_id: str, url: str) -> str:
         "outtmpl": str(output_dir / "audio.%(ext)s"),
         "quiet": True,
         "no_warnings": True,
-        "remote_components": "ejs:github",
+        "js_runtimes": {"node": {}},
+        "remote_components": {"ejs:github"},
         "extractor_args": _extractor_args(),
         **_auth_opts(),
     }
@@ -62,7 +63,8 @@ def download_clip_segment(job_id: str, url: str, clip_idx: int, start: float, en
         "merge_output_format": "mp4",
         "download_ranges": lambda info, __: [{"start_time": start, "end_time": end}],
         "force_keyframes_at_cuts": True,
-        "remote_components": "ejs:github",
+        "js_runtimes": {"node": {}},
+        "remote_components": {"ejs:github"},
         "extractor_args": _extractor_args(),
         **_auth_opts(),
     }
